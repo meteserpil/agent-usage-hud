@@ -12,10 +12,16 @@ process.stdin.on('end', () => {
   try { rl = JSON.parse(input).rate_limits || {}; } catch { /* not JSON: print nothing useful, never crash the status line */ }
   const keep = (w) => w && { used_percentage: w.used_percentage, resets_at: w.resets_at };
   if (rl.five_hour || rl.seven_day) {
-    fs.mkdirSync(path.dirname(CLAUDE_LIMITS), { recursive: true });
-    const tmp = CLAUDE_LIMITS + '.tmp';
-    fs.writeFileSync(tmp, JSON.stringify({ five_hour: keep(rl.five_hour), seven_day: keep(rl.seven_day) }));
-    fs.renameSync(tmp, CLAUDE_LIMITS); // atomic, so the overlay never reads half a file
+    // One temp file per process: several Claude sessions refresh their status lines at once.
+    const tmp = `${CLAUDE_LIMITS}.${process.pid}.tmp`;
+    try {
+      fs.mkdirSync(path.dirname(CLAUDE_LIMITS), { recursive: true });
+      fs.writeFileSync(tmp, JSON.stringify({ five_hour: keep(rl.five_hour), seven_day: keep(rl.seven_day) }));
+      fs.renameSync(tmp, CLAUDE_LIMITS); // atomic, so the overlay never reads half a file
+    } catch {
+      // Windows refuses the rename while another process holds the file; the next refresh saves it.
+      try { fs.unlinkSync(tmp); } catch { /* already gone */ }
+    }
   }
   const pct = (w) => (w ? `${Math.round(w.used_percentage)}%` : '–');
   process.stdout.write(`5h ${pct(rl.five_hour)} · 7d ${pct(rl.seven_day)}`);

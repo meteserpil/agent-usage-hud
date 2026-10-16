@@ -54,12 +54,23 @@ test('sums the last 7 days for every tool', () => {
   fs.utimesSync(path.join(conv, 'a.pb'), new Date(recent), new Date(recent));
 
   const [claude, codex, cursor, ag] = collect({ home, now, appData }).tools;
-  assert.deepStrictEqual([claude.sessions, claude.messages, claude.input, claude.output, claude.cached], [1, 1, 15, 20, 100]);
-  assert.deepStrictEqual([codex.sessions, codex.messages, codex.input, codex.output, codex.cached], [1, 1, 100, 20, 100]);
+  assert.deepStrictEqual([claude.sessions, claude.messages, claude.input, claude.output], [1, 1, 15, 20]);
+  assert.deepStrictEqual([codex.sessions, codex.messages, codex.input, codex.output], [1, 1, 100, 20]);
   assert.strictEqual(codex.limits.weekly.pct, 42.4);
   assert.deepStrictEqual([cursor.sessions, cursor.messages], [1, 2]);
   assert.strictEqual(cursor.note, 'limits and tokens not stored locally');
   assert.strictEqual(ag.sessions, 1);
+});
+
+test('a changed log file is read again, an unchanged one comes from cache', () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'hud-cache-'));
+  const file = path.join(home, '.claude/projects/p/s.jsonl');
+  const entry = (id) => ({ sessionId: 's', timestamp: recent, requestId: id, message: { id, usage: { output_tokens: 1 } } });
+  write(file, [entry('a')]);
+  assert.strictEqual(collect({ home, now, appData: home }).tools[0].messages, 1);
+  assert.strictEqual(collect({ home, now, appData: home }).tools[0].messages, 1);
+  write(file, [entry('a'), entry('b')]);
+  assert.strictEqual(collect({ home, now, appData: home }).tools[0].messages, 2);
 });
 
 test('missing tools are reported as not found', () => {
@@ -91,4 +102,17 @@ test('status line script saves only the limit windows', () => {
   assert.strictEqual(out, '5h 12% · 7d 50%');
   const saved = fs.readFileSync(path.join(home, '.agent-usage-hud/claude-limits.json'), 'utf8');
   assert.deepStrictEqual(JSON.parse(saved), { five_hour: { used_percentage: 12.4, resets_at: 1 }, seven_day: { used_percentage: 50, resets_at: 2 } });
+});
+
+test('status line still prints when the save fails', () => {
+  const { execFileSync } = require('child_process');
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'hud-sl-fail-'));
+  // A folder in the file's place makes the rename fail, like a file locked by another process on Windows.
+  fs.mkdirSync(path.join(home, '.agent-usage-hud/claude-limits.json'), { recursive: true });
+  const out = execFileSync(process.execPath, [path.join(__dirname, 'claude-statusline.js')], {
+    input: JSON.stringify({ rate_limits: { five_hour: { used_percentage: 7, resets_at: 1 } } }),
+    env: { ...process.env, HOME: home, USERPROFILE: home },
+  }).toString();
+  assert.strictEqual(out, '5h 7% · 7d –');
+  assert.deepStrictEqual(fs.readdirSync(path.join(home, '.agent-usage-hud')), ['claude-limits.json']); // no leftover temp file
 });

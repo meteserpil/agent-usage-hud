@@ -43,6 +43,8 @@ function toggle() {
 }
 
 if (!app.requestSingleInstanceLock()) app.quit();
+// Starting the app again while it runs shows the overlay instead of silently exiting.
+app.on('second-instance', () => { if (win && !win.isVisible()) toggle(); });
 
 app.whenReady().then(() => {
   if (app.dock) app.dock.hide();

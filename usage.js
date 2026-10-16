@@ -9,7 +9,7 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const CLAUDE_LIMITS = path.join(os.homedir(), '.agent-usage-hud', 'claude-limits.json');
 
 function row(name) {
-  return { name, sessions: 0, messages: 0, input: 0, output: 0, cached: 0, found: false, note: '', limits: { session: null, weekly: null } };
+  return { name, sessions: 0, messages: 0, input: 0, output: 0, found: false, note: '', limits: { session: null, weekly: null } };
 }
 
 // Recursively list *.jsonl files modified since `since` (older files cannot hold new entries).
@@ -24,14 +24,31 @@ function jsonlFiles(dir, since, out = []) {
   return out;
 }
 
-function lines(file) {
-  const out = [];
-  for (const l of fs.readFileSync(file, 'utf8').split('\n')) {
-    if (!l) continue;
-    try { out.push(JSON.parse(l)); } catch { /* partial line while the agent is writing */ }
+// Picked rows per file, reused until the file changes, so each toggle only re-reads active sessions.
+const cache = new Map();
+let run = 0;
+
+function rows(file, pick) {
+  const st = fs.statSync(file);
+  let hit = cache.get(file);
+  if (!hit || hit.mtimeMs !== st.mtimeMs || hit.size !== st.size) {
+    const out = [];
+    for (const l of fs.readFileSync(file, 'utf8').split('\n')) {
+      if (!l) continue;
+      let e;
+      try { e = JSON.parse(l); } catch { continue; } // partial line while the agent is writing
+      const r = pick(e);
+      if (r) out.push(r);
+    }
+    hit = { mtimeMs: st.mtimeMs, size: st.size, rows: out };
+    cache.set(file, hit);
   }
-  return out;
+  hit.run = run;
+  return hit.rows;
 }
+
+const pickClaude = (e) => e.message && e.message.usage &&
+  { t: Date.parse(e.timestamp), id: `${e.message.id}:${e.requestId}`, sid: e.sessionId, u: e.message.usage };
 
 function claudeCode(home, since, now, limitsFile) {
   const r = row('Claude Code');
@@ -42,18 +59,15 @@ function claudeCode(home, since, now, limitsFile) {
   const sessions = new Set();
   for (const root of roots) {
     for (const f of jsonlFiles(root, since)) {
-      for (const e of lines(f)) {
-        const u = e.message && e.message.usage;
-        if (!u || Date.parse(e.timestamp) < since) continue;
+      for (const { t, id, sid, u } of rows(f, pickClaude)) {
+        if (t < since) continue;
         // One API response is logged once per content block; count it once.
-        const id = `${e.message.id}:${e.requestId}`;
         if (seen.has(id)) continue;
         seen.add(id);
-        sessions.add(e.sessionId || f);
+        sessions.add(sid || f);
         r.messages++;
         r.input += (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0);
         r.output += u.output_tokens || 0;
-        r.cached += u.cache_read_input_tokens || 0;
       }
     }
   }
@@ -72,6 +86,9 @@ function limit(pct, resetsAt, now) {
   return resetsAt && resetsAt * 1000 < now ? { pct: 0, resetsAt: null } : { pct, resetsAt: resetsAt || null };
 }
 
+const pickCodex = (e) => e.type === 'event_msg' && e.payload && e.payload.type === 'token_count' &&
+  { t: Date.parse(e.timestamp), rl: e.payload.rate_limits, tot: e.payload.info && e.payload.info.total_token_usage };
+
 function codex(home, since, now) {
   const r = row('Codex');
   const root = path.join(process.env.CODEX_HOME || path.join(home, '.codex'), 'sessions');
@@ -80,16 +97,12 @@ function codex(home, since, now) {
   for (const f of jsonlFiles(root, since)) {
     let prev = null;
     let active = false;
-    for (const e of lines(f)) {
-      const p = e.payload;
-      if (e.type !== 'event_msg' || !p || p.type !== 'token_count') continue;
-      const t = Date.parse(e.timestamp);
-      for (const lim of [p.rate_limits && p.rate_limits.primary, p.rate_limits && p.rate_limits.secondary]) {
+    for (const { t, rl, tot } of rows(f, pickCodex)) {
+      for (const lim of [rl && rl.primary, rl && rl.secondary]) {
         if (!lim) continue;
         const kind = lim.window_minutes >= 10080 ? 'weekly' : lim.window_minutes <= 300 ? 'session' : null;
         if (kind && (!latest[kind] || t > latest[kind].t)) latest[kind] = { t, ...lim };
       }
-      const tot = p.info && p.info.total_token_usage;
       if (!tot) continue;
       // total_token_usage is cumulative per session, so add the growth since the previous event.
       const d = (k) => (tot[k] || 0) - ((prev && prev[k]) || 0);
@@ -98,7 +111,6 @@ function codex(home, since, now) {
         r.messages++;
         r.input += d('input_tokens') - d('cached_input_tokens');
         r.output += d('output_tokens');
-        r.cached += d('cached_input_tokens');
       }
       prev = tot;
     }
@@ -124,7 +136,8 @@ function cursor(home, since, appData = appDataDir(home)) {
   try {
     conn = new DatabaseSync(db, { readOnly: true });
     const sessions = new Set();
-    for (const { key, value } of conn.prepare("SELECT key, value FROM cursorDiskKV WHERE key LIKE 'bubbleId:%'").all()) {
+    // iterate() streams rows; the database can be gigabytes for heavy users.
+    for (const { key, value } of conn.prepare("SELECT key, value FROM cursorDiskKV WHERE key LIKE 'bubbleId:%'").iterate()) {
       let b;
       try { b = JSON.parse(value); } catch { continue; }
       if (!b || Date.parse(b.createdAt) < since) continue;
@@ -135,7 +148,7 @@ function cursor(home, since, appData = appDataDir(home)) {
     }
     r.sessions = sessions.size;
     r.note = 'no limit data stored locally';
-  // Cursor bills on its servers and usually stores 0 tokens locally.
+    // Cursor bills on its servers and usually stores 0 tokens locally.
     if (r.messages && !r.input && !r.output) r.note = 'limits and tokens not stored locally';
   } catch (err) {
     r.note = `could not read (${err.code || err.message})`;
@@ -160,17 +173,17 @@ function antigravity(home, since) {
 
 function collect({ home = os.homedir(), now = Date.now(), appData, claudeLimits = path.join(home, '.agent-usage-hud', 'claude-limits.json') } = {}) {
   const since = now - WEEK_MS;
+  run++;
   const safe = (fn, name) => { try { return fn(); } catch (e) { return { ...row(name), found: true, note: `error: ${e.message}` }; } };
-  return {
-    since,
-    now,
-    tools: [
-      safe(() => claudeCode(home, since, now, claudeLimits), 'Claude Code'),
-      safe(() => codex(home, since, now), 'Codex'),
-      safe(() => cursor(home, since, appData), 'Cursor'),
-      safe(() => antigravity(home, since), 'Antigravity'),
-    ],
-  };
+  const tools = [
+    safe(() => claudeCode(home, since, now, claudeLimits), 'Claude Code'),
+    safe(() => codex(home, since, now), 'Codex'),
+    safe(() => cursor(home, since, appData), 'Cursor'),
+    safe(() => antigravity(home, since), 'Antigravity'),
+  ];
+  // Forget files that dropped out of the 7-day window.
+  for (const [f, hit] of cache) if (hit.run !== run) cache.delete(f);
+  return { now, tools };
 }
 
 module.exports = { collect, CLAUDE_LIMITS };

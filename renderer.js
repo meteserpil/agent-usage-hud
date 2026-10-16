@@ -10,7 +10,7 @@ function until(resetsAt, now) {
 }
 
 function el(tag, attrs = {}, text) {
-  const e = tag === 'div' || tag === 'span' ? document.createElement(tag) : document.createElementNS(SVG, tag);
+  const e = tag === 'div' ? document.createElement(tag) : document.createElementNS(SVG, tag);
   for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
   if (text !== undefined) e.textContent = text; // textContent only: log data is never parsed as HTML
   return e;
@@ -121,5 +121,4 @@ keyBtn.onclick = () => {
 };
 document.getElementById('close').onclick = () => window.hud.hide();
 document.getElementById('quit').onclick = () => window.hud.quit();
-window.hud.onRefresh(refresh);
-refresh();
+window.hud.onRefresh(refresh); // main sends 'refresh' every time the overlay opens, including at start
