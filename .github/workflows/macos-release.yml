@@ -25,7 +25,7 @@ jobs:
         run: npm ci
 
       - name: Build Intel and Apple Silicon installers
-        run: npm run dist:mac -- --x64 --arm64
+        run: npm run dist:mac -- --x64 --arm64 --publish never
 
       - name: Publish GitHub release
         env:
