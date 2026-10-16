@@ -6,6 +6,7 @@ const { collect } = require('./usage');
 const DEFAULT_HOTKEY = 'CommandOrControl+Shift+U';
 const configFile = () => path.join(app.getPath('userData'), 'config.json');
 const WIDTH = 280;
+const USAGE_REFRESH_MS = 3000;
 let win;
 let hotkey;
 let position;
@@ -121,6 +122,11 @@ app.whenReady().then(() => {
   ipcMain.on('resize', (_e, h) => { win.setSize(WIDTH, Math.min(Math.max(Math.round(h) || 0, 100), 1000)); dock(); });
   ipcMain.on('hide', () => win.hide());
   ipcMain.on('quit', () => app.quit());
+
+  // Local agent logs update during and after turns. Refresh only while visible.
+  setInterval(() => {
+    if (win && !win.isDestroyed() && win.isVisible() && !win.webContents.isLoading()) win.webContents.send('refresh');
+  }, USAGE_REFRESH_MS);
 
   if (setHotkey(loadHotkey()) || setHotkey(DEFAULT_HOTKEY)) {
     console.log(`agent-usage-hud running. Press ${hotkey} to toggle.`);

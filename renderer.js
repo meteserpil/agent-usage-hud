@@ -75,7 +75,11 @@ try {
   if (Array.isArray(saved)) collapsedAgents = new Set(saved.filter((name) => typeof name === 'string'));
 } catch { /* use expanded rows if saved state is unavailable */ }
 
+let refreshing = false;
 async function refresh() {
+  if (refreshing) return;
+  refreshing = true;
+  try {
   const { tools, now, hotkey } = await window.hud.usage();
   const list = document.getElementById('tools');
   list.replaceChildren();
@@ -123,6 +127,11 @@ async function refresh() {
   if (!shown.length) list.append(el('div', { class: 'muted' }, 'No supported agent found on this machine.'));
   showKey(hotkey);
   window.hud.resize(document.querySelector('.panel').offsetHeight);
+  } catch (error) {
+    console.error('Could not refresh agent usage:', error);
+  } finally {
+    refreshing = false;
+  }
 }
 
 const keyBtn = document.getElementById('key');

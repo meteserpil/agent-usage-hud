@@ -49,6 +49,7 @@ The overlay appears once at start, then runs in the background. On macOS, you ca
 - **Toggle:** `Ctrl+Shift+U` on Windows, `Cmd+Shift+U` on macOS
 - **Move:** drag the header to place the overlay anywhere on a screen; its position is saved
 - **Collapse details:** click the `−` beside an agent's name to hide its usage details; click `+` to show them again. Each agent's preference is saved.
+- **Live updates:** usage refreshes every 3 seconds while the overlay is visible.
 - **Change the key:** click `key: …` at the bottom of the overlay and press any supported key or combination (for example `Ctrl+Alt+K`, `F9`, or a single letter). Click the button again to cancel. Your choice is saved.
 - **hide** hides it, **quit** closes the app.
 
