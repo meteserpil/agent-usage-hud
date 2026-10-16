@@ -1,0 +1,15 @@
+{
+  "name": "agent-usage-hud",
+  "version": "1.0.0",
+  "description": "Toggleable overlay showing Claude Code, Codex, Cursor and Antigravity usage and limits. Local-only, read-only.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^44.8.0"
+  },
+  "private": true
+}

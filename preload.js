@@ -1,0 +1,12 @@
+// The page gets exactly these calls and nothing else from Node/Electron.
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('hud', {
+  usage: () => ipcRenderer.invoke('usage'),
+  setHotkey: (acc) => ipcRenderer.invoke('set-hotkey', acc),
+  resize: (h) => ipcRenderer.send('resize', h),
+  hide: () => ipcRenderer.send('hide'),
+  quit: () => ipcRenderer.send('quit'),
+  onRefresh: (cb) => ipcRenderer.on('refresh', () => cb()),
+  isMac: process.platform === 'darwin',
+});

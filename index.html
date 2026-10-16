@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'">
+  <title>Agent Usage</title>
+  <style>
+    body { margin: 0; font: 12px/1.35 -apple-system, "Segoe UI", system-ui, sans-serif; color: #e8e8ea; background: transparent; user-select: none; }
+    .panel { box-sizing: border-box; padding: 12px; border-radius: 14px; background: rgba(20, 20, 24, 0.97); border: 1px solid rgba(255, 255, 255, 0.1); }
+    header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+    h1 { font-size: 13px; margin: 0; font-weight: 600; }
+    .muted { color: #9a9aa3; font-size: 11px; }
+    .tool { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+    svg { flex: none; }
+    .track { fill: none; stroke: rgba(255, 255, 255, 0.08); }
+    .arc { fill: none; stroke-linecap: round; transition: stroke-dashoffset 0.9s cubic-bezier(.2, .8, .2, 1), stroke 0.9s; }
+    .name { font-weight: 600; font-size: 13px; }
+    .info div { font-variant-numeric: tabular-nums; }
+    footer { display: flex; justify-content: space-between; margin-top: 6px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+    button { background: none; border: 0; color: #9a9aa3; cursor: pointer; font: inherit; font-size: 11px; padding: 0; }
+    button:hover, button:focus-visible { color: #fff; }
+    #key.capturing { color: #ffd166; }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <header><h1>Agent usage</h1><span class="muted">inner 5h · outer 7d</span></header>
+    <div id="tools"></div>
+    <footer>
+      <button id="key" title="Click, then press a new shortcut"></button>
+      <span><button id="close" title="Hide">hide</button> · <button id="quit" title="Quit app">quit</button></span>
+    </footer>
+  </div>
+  <script src="renderer.js"></script>
+</body>
+</html>
