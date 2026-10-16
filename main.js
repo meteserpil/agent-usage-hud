@@ -6,7 +6,7 @@ const { collect } = require('./usage');
 const DEFAULT_HOTKEY = 'CommandOrControl+Shift+U';
 const configFile = () => path.join(app.getPath('userData'), 'config.json');
 const WIDTH = 280;
-const USAGE_REFRESH_MS = 3000;
+const USAGE_REFRESH_MS = 60_000;
 let win;
 let hotkey;
 let position;

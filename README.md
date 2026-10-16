@@ -25,11 +25,11 @@ If an agent doesn't store a number or limit window locally, the overlay says so 
 ### macOS: download the app
 
 1. Open [the latest release](https://github.com/meteserpil/agent-usage-hud/releases/latest).
-2. Download `Agent-Usage-HUD-<version>-arm64.dmg` for Apple Silicon (M1/M2/M3/M4) or `Agent-Usage-HUD-<version>-x64.dmg` for an Intel Mac.
+2. macOS 12 Monterey or newer is required. Download `Agent-Usage-HUD-<version>-arm64.dmg` for Apple Silicon (M1/M2/M3/M4) or `Agent-Usage-HUD-<version>-x64.dmg` for an Intel Mac.
 3. Open the downloaded DMG and drag **Agent Usage HUD** into **Applications**.
 4. Eject the DMG, then open the app from Applications. The first launch may be blocked because these community builds are not signed or notarized. If you trust the source, try opening it once, then go to **System Settings → Privacy & Security → Open Anyway** and confirm. See [Apple's instructions](https://support.apple.com/en-sg/102445).
 
-The release workflow builds separate installers for Intel and Apple Silicon Macs. Releases are unsigned because this project does not have an Apple Developer ID certificate.
+The release workflow builds separate installers for Intel and Apple Silicon Macs. Electron 43 supports macOS 12 Monterey and newer. Releases are unsigned because this project does not have an Apple Developer ID certificate.
 
 ### Build from source (Windows, macOS, or Linux)
 
@@ -49,7 +49,7 @@ The overlay appears once at start, then runs in the background. On macOS, you ca
 - **Toggle:** `Ctrl+Shift+U` on Windows, `Cmd+Shift+U` on macOS
 - **Move:** drag the header to place the overlay anywhere on a screen; its position is saved
 - **Collapse details:** click the `−` beside an agent's name to hide its usage details; click `+` to show them again. Each agent's preference is saved.
-- **Live updates:** usage refreshes every 3 seconds while the overlay is visible.
+- **Live updates:** usage refreshes every 60 seconds while the overlay is visible.
 - **Change the key:** click `key: …` at the bottom of the overlay and press any supported key or combination (for example `Ctrl+Alt+K`, `F9`, or a single letter). Click the button again to cancel. Your choice is saved.
 - **hide** hides it, **quit** closes the app.
 
