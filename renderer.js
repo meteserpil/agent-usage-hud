@@ -1,5 +1,6 @@
 const SVG = 'http://www.w3.org/2000/svg';
 const fmt = (n) => (n >= 1e9 ? (n / 1e9).toFixed(1) + 'B' : n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'k' : String(n));
+const windowName = (mins) => mins % 1440 === 0 ? `${mins / 1440}d` : mins % 60 === 0 ? `${mins / 60}h` : `${mins}m`;
 // 0% = green (hue 120) → 100% = red (hue 0).
 const color = (pct) => `hsl(${Math.round(120 * (1 - Math.min(pct, 100) / 100))}, 75%, 50%)`;
 
@@ -44,7 +45,11 @@ const LOGOS = {
 function rings(t, size) {
   const svg = el('svg', { width: size, height: size, viewBox: '0 0 76 76', role: 'img', 'aria-label': t.name });
   const arcs = [];
-  for (const [r, lim] of [[33, t.limits.weekly], [22, t.limits.session]]) {
+  const windows = [...(t.windows || [])].sort((a, b) => a.minutes - b.minutes);
+  const displayed = windows.length > 1 ? [windows[windows.length - 1], windows[0]]
+    : windows.length === 1 ? (windows[0].minutes <= 300 ? [null, windows[0]] : [windows[0], null])
+      : [null, null];
+  for (const [r, lim] of [[33, displayed[0]], [22, displayed[1]]]) {
     const c = 2 * Math.PI * r;
     svg.append(el('circle', { class: 'track', cx: 38, cy: 38, r, 'stroke-width': 8 }));
     if (!lim) continue;
@@ -62,7 +67,13 @@ function rings(t, size) {
   return svg;
 }
 
-const used = (t) => t.found && (t.sessions > 0 || t.limits.session || t.limits.weekly);
+const used = (t) => t.found && (t.sessions > 0 || (t.windows && t.windows.length));
+const COLLAPSED_KEY = 'agent-usage-hud-collapsed';
+let collapsedAgents = new Set();
+try {
+  const saved = JSON.parse(localStorage.getItem(COLLAPSED_KEY) || '[]');
+  if (Array.isArray(saved)) collapsedAgents = new Set(saved.filter((name) => typeof name === 'string'));
+} catch { /* use expanded rows if saved state is unavailable */ }
 
 async function refresh() {
   const { tools, now, hotkey } = await window.hud.usage();
@@ -75,16 +86,38 @@ async function refresh() {
   const size = shown.length <= 1 ? 120 : shown.length === 2 ? 96 : 76;
   for (const t of shown) {
     const row = el('div', { class: 'tool' });
+    if (collapsedAgents.has(t.name)) row.classList.add('collapsed');
     const info = el('div', { class: 'info' });
-    info.append(el('div', { class: 'name' }, t.name));
-    const { session: s, weekly: w } = t.limits;
-    if (s) info.append(el('div', { style: `color:${color(s.pct)}` }, `5h ${Math.round(s.pct)}%${until(s.resetsAt, now)}`));
-    if (w) info.append(el('div', { style: `color:${color(w.pct)}` }, `7d ${Math.round(w.pct)}%${until(w.resetsAt, now)}`));
+    const heading = el('div', { class: 'agent-heading' });
+    heading.append(el('div', { class: 'name' }, t.name));
+    const collapse = document.createElement('button');
+    collapse.type = 'button';
+    collapse.className = 'collapse-button';
+    collapse.textContent = row.classList.contains('collapsed') ? '+' : '−';
+    collapse.title = row.classList.contains('collapsed') ? 'Show usage details' : 'Hide usage details';
+    collapse.setAttribute('aria-label', `${collapse.title} for ${t.name}`);
+    heading.append(collapse);
+    info.append(heading);
+    const details = el('div', { class: 'details' });
+    for (const w of [...(t.windows || [])].sort((a, b) => a.minutes - b.minutes)) {
+      details.append(el('div', { style: `color:${color(w.pct)}` }, `${windowName(w.minutes)} ${Math.round(w.pct)}%${until(w.resetsAt, now)}`));
+    }
     const tokens = t.input + t.output;
     const plural = (n, w) => `${fmt(n)} ${w}${n === 1 ? '' : 's'}`;
-    info.append(el('div', { class: 'muted' }, '7d: ' + [plural(t.sessions, 'session'), t.messages && plural(t.messages, 'msg'), tokens && `${fmt(tokens)} tok`].filter(Boolean).join(' · ')));
-    if (t.note) info.append(el('div', { class: 'muted' }, t.note));
+    details.append(el('div', { class: 'muted' }, '7d: ' + [plural(t.sessions, 'session'), t.messages && plural(t.messages, 'msg'), tokens && `${fmt(tokens)} tok`].filter(Boolean).join(' · ')));
+    if (t.note) details.append(el('div', { class: 'muted' }, t.note));
+    info.append(details);
     row.append(rings(t, size), info);
+    collapse.onclick = () => {
+      const isCollapsed = row.classList.toggle('collapsed');
+      if (isCollapsed) collapsedAgents.add(t.name);
+      else collapsedAgents.delete(t.name);
+      localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...collapsedAgents]));
+      collapse.textContent = isCollapsed ? '+' : '−';
+      collapse.title = isCollapsed ? 'Show usage details' : 'Hide usage details';
+      collapse.setAttribute('aria-label', `${collapse.title} for ${t.name}`);
+      window.hud.resize(document.querySelector('.panel').offsetHeight);
+    };
     list.append(row);
   }
   if (!shown.length) list.append(el('div', { class: 'muted' }, 'No supported agent found on this machine.'));
@@ -97,26 +130,48 @@ const showKey = (k) => { keyBtn.textContent = `key: ${(k || 'none').replace('Com
 
 // Turn a keydown into an Electron accelerator like "Control+Alt+K" or "F9".
 function accelerator(e) {
-  const named = { Space: 'Space', ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right', Backquote: '`', Minus: '-', Equal: '=', Comma: ',', Period: '.', Slash: '/' };
-  const key = /^Key[A-Z]$/.test(e.code) ? e.code.slice(3) : /^Digit\d$/.test(e.code) ? e.code.slice(5) : /^F\d{1,2}$/.test(e.code) ? e.code : named[e.code];
+  const named = {
+    Space: 'Space', Tab: 'Tab', Enter: 'Enter', NumpadEnter: 'Enter', Escape: 'Escape',
+    Backspace: 'Backspace', Delete: 'Delete', Insert: 'Insert', Home: 'Home', End: 'End',
+    PageUp: 'PageUp', PageDown: 'PageDown', ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right',
+    CapsLock: 'Capslock', NumLock: 'Numlock', ScrollLock: 'Scrolllock', PrintScreen: 'PrintScreen',
+    Backquote: '`', Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']', Backslash: '\\',
+    Semicolon: ';', Quote: "'", Comma: ',', Period: '.', Slash: '/',
+    NumpadAdd: 'numadd', NumpadSubtract: 'numsub', NumpadMultiply: 'nummult', NumpadDivide: 'numdiv', NumpadDecimal: 'numdec',
+    AudioVolumeUp: 'VolumeUp', AudioVolumeDown: 'VolumeDown', AudioVolumeMute: 'VolumeMute',
+    MediaTrackNext: 'MediaNextTrack', MediaTrackPrevious: 'MediaPreviousTrack', MediaStop: 'MediaStop', MediaPlayPause: 'MediaPlayPause',
+  };
+  const key = /^Key[A-Z]$/.test(e.code) ? e.code.slice(3)
+    : /^Digit\d$/.test(e.code) ? e.code.slice(5)
+      : /^Numpad\d$/.test(e.code) ? `num${e.code.slice(6)}`
+        : /^F(?:[1-9]|1\d|2[0-4])$/.test(e.code) ? e.code : named[e.code];
   if (!key) return null;
-  const mods = [e.ctrlKey && 'Control', e.altKey && 'Alt', e.shiftKey && 'Shift', e.metaKey && (window.hud.isMac ? 'Command' : 'Super')].filter(Boolean);
-  // A bare letter would swallow normal typing everywhere, so require a modifier unless it's an F-key.
-  if (!mods.length && !/^F\d/.test(key)) return null;
+  const altGr = e.getModifierState && e.getModifierState('AltGraph');
+  const mods = altGr ? ['AltGr'] : [e.ctrlKey && 'Control', e.altKey && 'Alt', e.shiftKey && 'Shift', e.metaKey && (window.hud.isMac ? 'Command' : 'Super')].filter(Boolean);
   return [...mods, key].join('+');
 }
 
-keyBtn.onclick = () => {
+let cancelKeyCapture;
+keyBtn.onclick = async () => {
+  if (keyBtn.classList.contains('capturing')) { if (cancelKeyCapture) cancelKeyCapture(); return; }
+  await window.hud.beginKeyCapture();
+  const previous = keyBtn.dataset.key;
   keyBtn.classList.add('capturing');
-  keyBtn.textContent = 'press new shortcut… (Esc cancels)';
+  keyBtn.textContent = 'press any key or combo… (click to cancel)';
   const onKey = async (e) => {
     e.preventDefault();
-    if (e.key === 'Escape') return done(keyBtn.dataset.key);
     const acc = accelerator(e);
     if (!acc) return; // still waiting for a usable combo
-    done((await window.hud.setHotkey(acc)) ? acc : keyBtn.dataset.key);
+    done((await window.hud.setHotkey(acc)) ? acc : previous);
   };
-  const done = (k) => { document.removeEventListener('keydown', onKey, true); keyBtn.classList.remove('capturing'); showKey(k); };
+  const done = async (k, canceled = false) => {
+    document.removeEventListener('keydown', onKey, true);
+    keyBtn.classList.remove('capturing');
+    cancelKeyCapture = null;
+    if (canceled) await window.hud.cancelKeyCapture();
+    showKey(k);
+  };
+  cancelKeyCapture = () => done(previous, true);
   document.addEventListener('keydown', onKey, true);
 };
 document.getElementById('close').onclick = () => window.hud.hide();

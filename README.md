@@ -4,22 +4,21 @@ A small always-on-top overlay for **Windows and macOS** that shows how much of y
 
 ![agent-usage-hud overlay](docs/screenshot.png)
 
-- **Inner ring:** current 5-hour session limit
-- **Outer ring:** weekly (7-day) limit
+- **Rings:** shortest detected limit window on the inner ring and longest on the outer ring; each window is labeled with its actual duration
 - Rings go from **green to red** as you approach the limit, and animate every time you open the overlay
 - Every agent you used this week is stacked on top of each other; the more agents, the smaller the rings
 - Below each ring: sessions, messages and tokens over the last 7 days
 
 Supported agents:
 
-| Agent | Session (5h) & weekly limit | Sessions / messages / tokens (7 days) |
+| Agent | Locally available limit windows | Sessions / messages / tokens (7 days) |
 |---|---|---|
-| Claude Code | ✅ via the status line script (one-time setup, see below) | ✅ from `~/.claude/projects` |
-| Codex CLI | ✅ from its own logs | ✅ from `~/.codex/sessions` |
+| Claude Code | ✅ 5-hour and 7-day limits via the status line script (one-time setup, see below) | ✅ from `~/.claude/projects` |
+| Codex CLI | ✅ windows reported by Codex are read from its logs and labeled by duration | ✅ from `~/.codex/sessions` |
 | Cursor | ❌ not stored on your machine | sessions + messages from Cursor's local database (tokens usually not stored) |
 | Antigravity | ❌ not stored on your machine | sessions only (conversation files are not readable) |
 
-If an agent doesn't store a number locally, the overlay says so instead of guessing.
+If an agent doesn't store a number or limit window locally, the overlay says so instead of guessing. Codex's available local windows can vary by plan and may not include a 5-hour limit.
 
 ## Install
 
@@ -46,7 +45,9 @@ The overlay shows once at start so you can see it works, then lives in the backg
 ## Use it
 
 - **Toggle:** `Ctrl+Shift+U` on Windows, `Cmd+Shift+U` on macOS
-- **Change the key:** click `key: …` at the bottom of the overlay and press the combination you want (for example `Ctrl+Alt+K` or just `F9`). It needs a modifier key unless it's an F-key, so it can't swallow normal typing. Your choice is saved.
+- **Move:** drag the header to place the overlay anywhere on a screen; its position is saved
+- **Collapse details:** click the `−` beside an agent's name to hide its usage details; click `+` to show them again. Each agent's preference is saved.
+- **Change the key:** click `key: …` at the bottom of the overlay and press any supported key or combination (for example `Ctrl+Alt+K`, `F9`, or a single letter). Click the button again to cancel. Your choice is saved.
 - **hide** hides it, **quit** closes the app.
 
 The overlay doesn't steal focus, so you can keep typing in your editor while it's open.

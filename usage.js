@@ -9,7 +9,7 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const CLAUDE_LIMITS = path.join(os.homedir(), '.agent-usage-hud', 'claude-limits.json');
 
 function row(name) {
-  return { name, sessions: 0, messages: 0, input: 0, output: 0, found: false, note: '', limits: { session: null, weekly: null } };
+  return { name, sessions: 0, messages: 0, input: 0, output: 0, found: false, note: '', limits: { session: null, weekly: null }, windows: [] };
 }
 
 // Recursively list *.jsonl files modified since `since` (older files cannot hold new entries).
@@ -76,6 +76,8 @@ function claudeCode(home, since, now, limitsFile) {
     const l = JSON.parse(fs.readFileSync(limitsFile, 'utf8'));
     r.limits.session = limit(l.five_hour && l.five_hour.used_percentage, l.five_hour && l.five_hour.resets_at, now);
     r.limits.weekly = limit(l.seven_day && l.seven_day.used_percentage, l.seven_day && l.seven_day.resets_at, now);
+    if (r.limits.session) r.windows.push({ minutes: 300, ...r.limits.session });
+    if (r.limits.weekly) r.windows.push({ minutes: 10080, ...r.limits.weekly });
   } catch { r.note = 'add the status line script to see limits'; }
   return r;
 }
@@ -93,15 +95,15 @@ function codex(home, since, now) {
   const r = row('Codex');
   const root = path.join(process.env.CODEX_HOME || path.join(home, '.codex'), 'sessions');
   r.found = fs.existsSync(root);
-  const latest = { session: null, weekly: null };
+  const latest = new Map();
   for (const f of jsonlFiles(root, since)) {
     let prev = null;
     let active = false;
     for (const { t, rl, tot } of rows(f, pickCodex)) {
       for (const lim of [rl && rl.primary, rl && rl.secondary]) {
-        if (!lim) continue;
-        const kind = lim.window_minutes >= 10080 ? 'weekly' : lim.window_minutes <= 300 ? 'session' : null;
-        if (kind && (!latest[kind] || t > latest[kind].t)) latest[kind] = { t, ...lim };
+        if (!lim || !Number.isFinite(lim.window_minutes) || lim.window_minutes <= 0) continue;
+        const mins = lim.window_minutes;
+        if (!latest.has(mins) || t > latest.get(mins).t) latest.set(mins, { t, ...lim });
       }
       if (!tot) continue;
       // total_token_usage is cumulative per session, so add the growth since the previous event.
@@ -116,7 +118,14 @@ function codex(home, since, now) {
     }
     if (active) r.sessions++;
   }
-  for (const k of ['session', 'weekly']) if (latest[k]) r.limits[k] = limit(latest[k].used_percent, latest[k].resets_at, now);
+  for (const [minutes, data] of [...latest].sort((a, b) => a[0] - b[0])) {
+    const value = limit(data.used_percent, data.resets_at, now);
+    if (!value) continue;
+    r.windows.push({ minutes, ...value });
+    if (minutes <= 300 && (!r.limits.session || minutes > r.limits.session.minutes)) r.limits.session = { ...value, minutes };
+    if (minutes === 10080) r.limits.weekly = value;
+  }
+  if (r.windows.length && !r.windows.some((w) => w.minutes <= 300)) r.note = '5h limit not present in local logs';
   return r;
 }
 

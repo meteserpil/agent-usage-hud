@@ -3,6 +3,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('hud', {
   usage: () => ipcRenderer.invoke('usage'),
+  beginKeyCapture: () => ipcRenderer.invoke('begin-key-capture'),
+  cancelKeyCapture: () => ipcRenderer.invoke('cancel-key-capture'),
   setHotkey: (acc) => ipcRenderer.invoke('set-hotkey', acc),
   resize: (h) => ipcRenderer.send('resize', h),
   hide: () => ipcRenderer.send('hide'),
