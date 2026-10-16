@@ -22,25 +22,27 @@ If an agent doesn't store a number or limit window locally, the overlay says so 
 
 ## Install
 
-You need [Node.js](https://nodejs.org) 18 or newer.
+### macOS: download the app
+
+1. Open [the latest release](https://github.com/meteserpil/agent-usage-hud/releases/latest).
+2. Download `Agent-Usage-HUD-<version>-arm64.dmg` for Apple Silicon (M1/M2/M3/M4) or `Agent-Usage-HUD-<version>-x64.dmg` for an Intel Mac.
+3. Open the downloaded DMG and drag **Agent Usage HUD** into **Applications**.
+4. Eject the DMG, then open the app from Applications. The first launch may be blocked because these community builds are not signed or notarized. If you trust the source, try opening it once, then go to **System Settings → Privacy & Security → Open Anyway** and confirm. See [Apple's instructions](https://support.apple.com/en-sg/102445).
+
+The release workflow builds separate installers for Intel and Apple Silicon Macs. Releases are unsigned because this project does not have an Apple Developer ID certificate.
+
+### Build from source (Windows, macOS, or Linux)
+
+Install [Node.js 22.12 or newer](https://nodejs.org), then run:
 
 ```bash
 git clone https://github.com/meteserpil/agent-usage-hud.git
-```
-
-```bash
 cd agent-usage-hud
-```
-
-```bash
-npm install
-```
-
-```bash
+npm ci
 npm start
 ```
 
-The overlay shows once at start so you can see it works, then lives in the background.
+The overlay appears once at start, then runs in the background. On macOS, you can also build a DMG locally with `npm run dist:mac`.
 
 ## Use it
 
@@ -73,6 +75,19 @@ Add this to `~/.claude/settings.json` (use the real path to where you cloned the
 
 On Windows, use forward slashes, for example `node C:/Users/you/agent-usage-hud/claude-statusline.js`.
 
+If you installed the macOS DMG, the script is included in the app. Use this command in `~/.claude/settings.json`:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "node \"/Applications/Agent Usage HUD.app/Contents/Resources/claude-statusline.js\""
+  }
+}
+```
+
+If you installed the app somewhere other than `/Applications`, update the path to match.
+
 Notes:
 - This replaces any status line you already have.
 - Limits are only available on Claude Pro and Max plans, and appear after the first reply in a session.
@@ -85,9 +100,10 @@ This app was written to be easy to audit. It's a few hundred lines of plain Java
 - **Read-only.** It only reads the agents' log files. Cursor's database is opened in read-only mode. It never changes, moves or deletes anything those tools own.
 - **Offline.** It makes no network requests: no telemetry, no analytics, no update checks, no accounts, no API keys.
 - **Nothing sensitive leaves the log files.** Only numbers (counts, token totals, percentages) are passed to the window. Your prompts and code are never displayed or stored.
-- **It writes only two small files:**
+- **It writes only a few small local files:**
   - `~/.agent-usage-hud/claude-limits.json`: the two Claude limit percentages and their reset times (written by the status line script)
-  - `config.json` in the app's data folder: your hotkey
+  - `config.json` in the app's data folder: your hotkey and overlay position
+  - renderer state in the app's data folder: which agents have their usage details collapsed
 - **No keylogging.** The hotkey uses the operating system's global shortcut API (the same one media keys use). It only learns when *your* chosen combination is pressed. On macOS it needs no Accessibility or Input Monitoring permission.
 - **Locked-down window.** Sandboxed renderer, context isolation, no Node in the page, a strict Content Security Policy, navigation and pop-ups blocked, and all permission requests (camera, mic, etc.) denied.
 

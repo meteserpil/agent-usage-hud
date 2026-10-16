@@ -1,15 +1,47 @@
 {
   "name": "agent-usage-hud",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Toggleable overlay showing Claude Code, Codex, Cursor and Antigravity usage and limits. Local-only, read-only.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node --test"
+    "test": "node --test",
+    "dist:mac": "electron-builder --mac"
   },
   "license": "MIT",
   "devDependencies": {
-    "electron": "^44.8.0"
+    "electron": "^44.8.0",
+    "electron-builder": "26.15.3"
   },
-  "private": true
+  "private": true,
+  "build": {
+    "appId": "com.meteserpil.agentusagehud",
+    "productName": "Agent Usage HUD",
+    "directories": {
+      "output": "dist"
+    },
+    "extraResources": [
+      {
+        "from": "claude-statusline.js",
+        "to": "claude-statusline.js"
+      },
+      {
+        "from": "usage.js",
+        "to": "usage.js"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "artifactName": "Agent-Usage-HUD-${version}-${arch}.${ext}"
+    }
+  }
 }
