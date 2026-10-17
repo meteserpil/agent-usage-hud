@@ -26,7 +26,7 @@ The Releases page keeps two versions:
 
 | Version | Claude Code setup | Release |
 |---|---|---|
-| **1.1.8** | Automatic during installation | [Download the latest release](https://github.com/meteserpil/agent-usage-hud/releases/latest) |
+| **1.1.9** | Automatic during installation, with setup failure messages | [Download the latest release](https://github.com/meteserpil/agent-usage-hud/releases/latest) |
 | **1.1.7** | Manual in the HUD: click **Set up Claude limits** | [Download v1.1.7](https://github.com/meteserpil/agent-usage-hud/releases/tag/v1.1.7) |
 
 The manual version does not ask you to type into `settings.json`; the button writes the status line for you. If you prefer to edit the file yourself, see [Manual Claude Code setup](#manual-claude-code-setup).
@@ -76,10 +76,10 @@ The overlay doesn't steal focus, so you can keep typing in your editor while it'
 
 Claude Code only shares its 5-hour and weekly limit with its [status line](https://code.claude.com/docs/en/statusline).
 
-- **v1.1.8:** the Windows or macOS installer adds the status line entry to the installing user's Claude settings.
+- **v1.1.9:** the Windows or macOS installer adds the status line entry to the installing user's Claude settings and explains setup failures.
 - **v1.1.7:** open the HUD and click **Set up Claude limits** to add the entry.
 
-Both methods install the helper in `~/.claude`, preserve other settings, and make a timestamped backup before changing an existing `settings.json`. If the file contains invalid JSON or already uses a different status line, setup leaves it unchanged.
+Both methods install the helper in `~/.claude`, preserve other settings, and make a timestamped backup before changing an existing `settings.json`. If the file contains invalid JSON or already uses a different status line, setup leaves it unchanged. The installers show a message explaining the problem and how to resolve it; if setup fails for another reason, they tell you to open the HUD for its setup status.
 
 ### Manual Claude Code setup
 

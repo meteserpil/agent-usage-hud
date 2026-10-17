@@ -1,6 +1,6 @@
 {
   "name": "agent-usage-hud",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "description": "Toggleable overlay showing Claude Code, Codex, Cursor and Antigravity usage and limits. Local-only, read-only.",
   "main": "main.js",
   "scripts": {

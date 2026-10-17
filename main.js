@@ -57,11 +57,18 @@ function claudeStatusLineState() {
 function installClaudeStatusLine() {
   let file, settings;
   try { ({ file, settings } = readClaudeSettings()); }
-  catch (error) { return { ok: false, message: `Could not read Claude settings: ${error.message}` }; }
+  catch (error) {
+    const invalidSettings = error instanceof SyntaxError || error.message === 'Claude settings.json must contain a JSON object.';
+    return {
+      ok: false,
+      exitCode: invalidSettings ? 2 : 1,
+      message: `Could not read Claude settings: ${error.message}`
+    };
+  }
 
   const current = settings.statusLine;
   if (current && !isHudStatusLine(current)) {
-    return { ok: false, message: 'Claude already has a different status line. It was left unchanged.' };
+    return { ok: false, exitCode: 3, message: 'Claude already has a different status line. It was left unchanged.' };
   }
 
   const helperDir = path.join(os.homedir(), '.claude');
@@ -72,11 +79,11 @@ function installClaudeStatusLine() {
   try {
     fs.mkdirSync(helperDir, { recursive: true });
     if (fs.existsSync(helperFile) && !fs.readFileSync(helperFile, 'utf8').includes('Installed and updated by agent-usage-hud')) {
-      return { ok: false, message: 'The HUD status line helper already exists and was left unchanged.' };
+      return { ok: false, exitCode: 4, message: 'The HUD status line helper already exists and was left unchanged.' };
     }
     fs.copyFileSync(sourceFile, helperFile);
   } catch (error) {
-    return { ok: false, message: `Could not install the Claude status line helper: ${error.message}` };
+    return { ok: false, exitCode: 1, message: `Could not install the Claude status line helper: ${error.message}` };
   }
 
   const next = { ...settings };
@@ -108,7 +115,7 @@ function installClaudeStatusLine() {
     if (backup && process.platform === 'win32') {
       try { fs.copyFileSync(backup, file); } catch { /* retain the backup for manual recovery */ }
     }
-    return { ok: false, message: `Could not update Claude settings: ${error.message}` };
+    return { ok: false, exitCode: 1, message: `Could not update Claude settings: ${error.message}` };
   }
   const backupNote = backup ? ` Backup saved as ${path.basename(backup)}.` : '';
   return { ok: true, message: `Claude limit tracking is set up. Start or resume Claude Code to load the latest limits.${backupNote}` };
@@ -175,7 +182,7 @@ app.whenReady().then(() => {
   if (setupClaudeOnly) {
     const result = installClaudeStatusLine();
     if (!result.ok) console.warn(`Claude limit setup: ${result.message}`);
-    app.exit(result.ok ? 0 : 1);
+    app.exit(result.ok ? 0 : (result.exitCode || 1));
     return;
   }
   if (app.dock) app.dock.hide();
