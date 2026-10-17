@@ -1,4 +1,4 @@
-name: Build macOS release
+name: Build desktop releases
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  build-and-release:
+  build-macos:
     runs-on: macos-latest
     steps:
       - name: Check out source
@@ -27,7 +27,53 @@ jobs:
       - name: Build Intel and Apple Silicon installers
         run: npm run dist:mac -- --x64 --arm64 --publish never
 
+      - name: Upload macOS installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-installers
+          path: dist/*.dmg
+          if-no-files-found: error
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Windows installers
+        run: npm run dist:win -- --x64 --arm64 --publish never
+
+      - name: Upload Windows installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installers
+          path: dist/*.exe
+          if-no-files-found: error
+
+  publish-release:
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Download installers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "*-installers"
+          path: release-assets
+          merge-multiple: true
+
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${GITHUB_REF_NAME}" dist/*.dmg --title "Agent Usage HUD ${GITHUB_REF_NAME}" --generate-notes
+        run: gh release create "$GITHUB_REF_NAME" release-assets/* --title "Agent Usage HUD $GITHUB_REF_NAME" --generate-notes

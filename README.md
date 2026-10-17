@@ -13,7 +13,7 @@ Supported agents:
 
 | Agent | Locally available limit windows | Sessions / messages / tokens (7 days) |
 |---|---|---|
-| Claude Code | ✅ 5-hour and 7-day limits via the status line script (one-time setup, see below) | ✅ from `~/.claude/projects` |
+| Claude Code | ✅ 5-hour and 7-day limits via one-click HUD setup | ✅ from `~/.claude/projects` |
 | Codex CLI | ✅ windows reported by Codex are read from its logs and labeled by duration | ✅ from `~/.codex/sessions` |
 | Cursor | ❌ not stored on your machine | sessions + messages from Cursor's local database (tokens usually not stored) |
 | Antigravity | ❌ not stored on your machine | sessions only (conversation files are not readable) |
@@ -22,6 +22,14 @@ If an agent doesn't store a number or limit window locally, the overlay says so 
 
 ## Install
 
+### Windows: download the installer
+
+1. Open [the latest release](https://github.com/meteserpil/agent-usage-hud/releases/latest).
+2. Download `Agent-Usage-HUD-<version>-Setup.exe`. The installer selects the right build for standard x64 PCs or Windows on ARM.
+3. Run the installer. It installs for your Windows account and adds a Start menu and desktop shortcut; Node.js is not required.
+
+The Windows installers are unsigned community builds. If Microsoft Defender SmartScreen warns you, verify that you downloaded the installer from this repository before choosing **More info** and **Run anyway**.
+
 ### macOS: download the app
 
 1. Open [the latest release](https://github.com/meteserpil/agent-usage-hud/releases/latest).
@@ -29,7 +37,7 @@ If an agent doesn't store a number or limit window locally, the overlay says so 
 3. Open the downloaded DMG and drag **Agent Usage HUD** into **Applications**.
 4. Eject the DMG, then open the app from Applications. The first launch may be blocked because these community builds are not signed or notarized. If you trust the source, try opening it once, then go to **System Settings → Privacy & Security → Open Anyway** and confirm. See [Apple's instructions](https://support.apple.com/en-sg/102445).
 
-The release workflow builds separate installers for Intel and Apple Silicon Macs. Electron 43 supports macOS 12 Monterey and newer. Releases are unsigned because this project does not have an Apple Developer ID certificate.
+The release workflow builds separate installers for Intel and Apple Silicon Macs, plus one Windows installer for x64 and ARM64 PCs. Electron 43 supports macOS 12 Monterey and newer. Mac builds are unsigned because this project does not have an Apple Developer ID certificate.
 
 ### Build from source (Windows, macOS, or Linux)
 
@@ -42,7 +50,7 @@ npm ci
 npm start
 ```
 
-The overlay appears once at start, then runs in the background. On macOS, you can also build a DMG locally with `npm run dist:mac`.
+The overlay appears once at start, then runs in the background. You can also build a DMG on macOS with `npm run dist:mac`, or a Windows installer with `npm run dist:win -- --x64 --arm64`.
 
 ## Use it
 
