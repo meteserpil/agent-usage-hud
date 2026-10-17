@@ -25,7 +25,7 @@ If an agent doesn't store a number or limit window locally, the overlay says so 
 ### Windows: download the installer
 
 1. Open [the latest release](https://github.com/meteserpil/agent-usage-hud/releases/latest).
-2. Download `Agent-Usage-HUD-<version>-Setup.exe`. The installer selects the right build for standard x64 PCs or Windows on ARM.
+2. Download the installer matching your PC: `Agent-Usage-HUD-<version>-x64-Setup.exe` for most Windows PCs with Intel or AMD processors, or `Agent-Usage-HUD-<version>-arm64-Setup.exe` for Windows on ARM. If unsure, check **Settings → System → About → System type**.
 3. Run the installer. It installs for your Windows account and adds a Start menu and desktop shortcut; Node.js is not required.
 
 The Windows installers are unsigned community builds. If Microsoft Defender SmartScreen warns you, verify that you downloaded the installer from this repository before choosing **More info** and **Run anyway**.
@@ -37,7 +37,7 @@ The Windows installers are unsigned community builds. If Microsoft Defender Smar
 3. Open the downloaded DMG and drag **Agent Usage HUD** into **Applications**.
 4. Eject the DMG, then open the app from Applications. The first launch may be blocked because these community builds are not signed or notarized. If you trust the source, try opening it once, then go to **System Settings → Privacy & Security → Open Anyway** and confirm. See [Apple's instructions](https://support.apple.com/en-sg/102445).
 
-The release workflow builds separate installers for Intel and Apple Silicon Macs, plus one Windows installer for x64 and ARM64 PCs. Electron 43 supports macOS 12 Monterey and newer. Mac builds are unsigned because this project does not have an Apple Developer ID certificate.
+The release workflow builds separate installers for Intel and Apple Silicon Macs, and separate x64 and ARM64 installers for Windows. Electron 43 supports macOS 12 Monterey and newer. Mac builds are unsigned because this project does not have an Apple Developer ID certificate.
 
 ### Build from source (Windows, macOS, or Linux)
 
@@ -50,7 +50,7 @@ npm ci
 npm start
 ```
 
-The overlay appears once at start, then runs in the background. You can also build a DMG on macOS with `npm run dist:mac`, or a Windows installer with `npm run dist:win -- --x64 --arm64`.
+The overlay appears once at start, then runs in the background. You can also build a DMG on macOS with `npm run dist:mac`, or Windows installers with `npm run dist:win:x64` and `npm run dist:win:arm64`.
 
 ## Use it
 
