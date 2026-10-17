@@ -22,6 +22,15 @@ If an agent doesn't store a number or limit window locally, the overlay says so 
 
 ## Install
 
+The Releases page keeps two versions:
+
+| Version | Claude Code setup | Release |
+|---|---|---|
+| **1.1.8** | Automatic during installation | [Download the latest release](https://github.com/meteserpil/agent-usage-hud/releases/latest) |
+| **1.1.7** | Manual in the HUD: click **Set up Claude limits** | [Download v1.1.7](https://github.com/meteserpil/agent-usage-hud/releases/tag/v1.1.7) |
+
+The manual version does not ask you to type into `settings.json`; the button writes the status line for you. If you prefer to edit the file yourself, see [Manual Claude Code setup](#manual-claude-code-setup).
+
 ### Windows: download the installer
 
 1. Open [the latest release](https://github.com/meteserpil/agent-usage-hud/releases/latest).
@@ -65,7 +74,14 @@ The overlay doesn't steal focus, so you can keep typing in your editor while it'
 
 ## Claude Code limits
 
-Claude Code only shares its 5-hour and weekly limit with its [status line](https://code.claude.com/docs/en/statusline). On Windows and macOS, the installer adds the status line entry to the installing user's Claude settings. It installs the helper in `~/.claude`, preserves other settings, and makes a timestamped backup before changing an existing `settings.json`. If your settings contain invalid JSON or already use a different status line, the app leaves them unchanged; fix the JSON or rerun setup.
+Claude Code only shares its 5-hour and weekly limit with its [status line](https://code.claude.com/docs/en/statusline).
+
+- **v1.1.8:** the Windows or macOS installer adds the status line entry to the installing user's Claude settings.
+- **v1.1.7:** open the HUD and click **Set up Claude limits** to add the entry.
+
+Both methods install the helper in `~/.claude`, preserve other settings, and make a timestamped backup before changing an existing `settings.json`. If the file contains invalid JSON or already uses a different status line, setup leaves it unchanged.
+
+### Manual Claude Code setup
 
 For manual setup, first copy `claude-statusline.js` to `~/.claude/agent-usage-hud-statusline.js`, then add this to `~/.claude/settings.json`:
 
