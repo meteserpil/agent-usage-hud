@@ -3,5 +3,6 @@ dist/
 build/icon-*.png
 build/icon.png
 build/icon-render-*/
+build/icon-transparent-*/
 build/render-icon.cjs
 build/package-icons.cjs
