@@ -1,0 +1,23 @@
+#!/bin/sh
+
+# Installer scripts run as root. Hand off the user-specific Claude setup to
+# the person logged into the Mac so the app writes to their home directory.
+console_user=$(/usr/bin/stat -f%Su /dev/console 2>/dev/null || true)
+case "$console_user" in
+  ""|root|loginwindow) exit 0 ;;
+esac
+
+user_home=$(/usr/bin/dscl . -read "/Users/$console_user" NFSHomeDirectory 2>/dev/null | /usr/bin/awk '{print $2}')
+user_id=$(/usr/bin/id -u "$console_user" 2>/dev/null || true)
+app_path="${3%/}${2%/}/Agent Usage HUD.app"
+app_executable="$app_path/Contents/MacOS/Agent Usage HUD"
+
+if [ -z "$user_home" ] || [ -z "$user_id" ] || [ ! -x "$app_executable" ]; then
+  exit 0
+fi
+
+/bin/launchctl asuser "$user_id" /usr/bin/sudo -u "$console_user" /usr/bin/env \
+  HOME="$user_home" USER="$console_user" LOGNAME="$console_user" \
+  "$app_executable" --setup-claude >/dev/null 2>&1 || true
+
+exit 0

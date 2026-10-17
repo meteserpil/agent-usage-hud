@@ -24,14 +24,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build Intel and Apple Silicon installers
+      - name: Build Intel and Apple Silicon package installers
         run: npm run dist:mac -- --x64 --arm64 --publish never
 
-      - name: Upload macOS installers
+      - name: Upload macOS package installers
         uses: actions/upload-artifact@v4
         with:
           name: macos-installers
-          path: dist/*.dmg
+          path: dist/*.pkg
           if-no-files-found: error
 
   build-windows:

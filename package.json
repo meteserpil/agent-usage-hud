@@ -1,6 +1,6 @@
 {
   "name": "agent-usage-hud",
-  "version": "1.1.7",
+  "version": "1.1.8",
   "description": "Toggleable overlay showing Claude Code, Codex, Cursor and Antigravity usage and limits. Local-only, read-only.",
   "main": "main.js",
   "scripts": {
@@ -45,7 +45,7 @@
       "minimumSystemVersion": "12.0.0",
       "target": [
         {
-          "target": "dmg",
+          "target": "pkg",
           "arch": [
             "x64",
             "arm64"
@@ -54,12 +54,17 @@
       ],
       "artifactName": "Agent-Usage-HUD-${version}-${arch}.${ext}"
     },
+    "pkg": {
+      "installLocation": "/Applications",
+      "scripts": "pkg-scripts"
+    },
     "win": {
       "target": "nsis",
       "icon": "build/icon.ico",
       "artifactName": "Agent-Usage-HUD-${version}-${arch}-Setup.${ext}"
     },
     "nsis": {
+      "include": "build/installer.nsh",
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "oneClick": true,

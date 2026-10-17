@@ -30,14 +30,14 @@ If an agent doesn't store a number or limit window locally, the overlay says so 
 
 The Windows installers are unsigned community builds. If Microsoft Defender SmartScreen warns you, verify that you downloaded the installer from this repository before choosing **More info** and **Run anyway**.
 
-### macOS: download the app
+### macOS: download the installer
 
 1. Open [the latest release](https://github.com/meteserpil/agent-usage-hud/releases/latest).
-2. macOS 12 Monterey or newer is required. Download `Agent-Usage-HUD-<version>-arm64.dmg` for Apple Silicon (M1/M2/M3/M4) or `Agent-Usage-HUD-<version>-x64.dmg` for an Intel Mac.
-3. Open the downloaded DMG and drag **Agent Usage HUD** into **Applications**.
-4. Eject the DMG, then open the app from Applications. The first launch may be blocked because these community builds are not signed or notarized. If you trust the source, try opening it once, then go to **System Settings → Privacy & Security → Open Anyway** and confirm. See [Apple's instructions](https://support.apple.com/en-sg/102445).
+2. macOS 12 Monterey or newer is required. Download `Agent-Usage-HUD-<version>-arm64.pkg` for Apple Silicon (M1/M2/M3/M4) or `Agent-Usage-HUD-<version>-x64.pkg` for an Intel Mac.
+3. Open the package and follow the installer. It installs **Agent Usage HUD** in **Applications** and configures Claude Code limits for your account.
+4. These community builds are unsigned. If macOS blocks the package, try opening it, then go to **System Settings → Privacy & Security → Open Anyway**. Only do this if you trust the source; see [Apple's instructions](https://support.apple.com/en-sg/102445).
 
-The release workflow builds separate installers for Intel and Apple Silicon Macs, and separate x64 and ARM64 installers for Windows. Electron 43 supports macOS 12 Monterey and newer. Mac builds are unsigned because this project does not have an Apple Developer ID certificate.
+The release workflow publishes one package installer per Mac architecture and one installer per Windows architecture. Electron 43 supports macOS 12 Monterey and newer. Mac packages are unsigned because this project does not have Apple Developer ID Application and Installer certificates.
 
 ### Build from source (Windows, macOS, or Linux)
 
@@ -50,7 +50,7 @@ npm ci
 npm start
 ```
 
-The overlay appears once at start, then runs in the background. You can also build a DMG on macOS with `npm run dist:mac`, or Windows installers with `npm run dist:win:x64` and `npm run dist:win:arm64`.
+The overlay appears once at start, then runs in the background. You can also build macOS package installers with `npm run dist:mac`, or Windows installers with `npm run dist:win:x64` and `npm run dist:win:arm64`.
 
 ## Use it
 
@@ -65,7 +65,7 @@ The overlay doesn't steal focus, so you can keep typing in your editor while it'
 
 ## Claude Code limits
 
-Claude Code only shares its 5-hour and weekly limit with its [status line](https://code.claude.com/docs/en/statusline). When Claude Code is detected, click **Set up Claude limits** in the HUD. The app installs its helper in `~/.claude` and adds the status line entry to your Claude settings. It preserves other settings and makes a timestamped backup before changing an existing `settings.json`.
+Claude Code only shares its 5-hour and weekly limit with its [status line](https://code.claude.com/docs/en/statusline). On Windows and macOS, the installer adds the status line entry to the installing user's Claude settings. It installs the helper in `~/.claude`, preserves other settings, and makes a timestamped backup before changing an existing `settings.json`. If your settings contain invalid JSON or already use a different status line, the app leaves them unchanged; fix the JSON or rerun setup.
 
 For manual setup, first copy `claude-statusline.js` to `~/.claude/agent-usage-hud-statusline.js`, then add this to `~/.claude/settings.json`:
 
@@ -93,7 +93,7 @@ This app was written to be easy to audit. It's a few hundred lines of plain Java
 - **It writes only a few small local files:**
   - `~/.agent-usage-hud/claude-limits.json`: the two Claude limit percentages and their reset times (written by the status line script)
   - `~/.claude/agent-usage-hud-statusline.js`: the helper Claude Code runs to provide limit percentages
-  - `~/.claude/settings.json`: the Claude status line command (only added when you click **Set up Claude limits**)
+  - `~/.claude/settings.json`: the Claude status line command (added by the Windows or macOS installer)
   - `config.json` in the app's data folder: your hotkey and overlay position
   - renderer state in the app's data folder: which agents have their usage details collapsed
 - **No keylogging.** The hotkey uses the operating system's global shortcut API (the same one media keys use). It only learns when *your* chosen combination is pressed. On macOS it needs no Accessibility or Input Monitoring permission.

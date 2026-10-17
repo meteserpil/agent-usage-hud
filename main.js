@@ -166,12 +166,23 @@ function toggle() {
   win.showInactive(); // don't steal focus from the editor
 }
 
-if (!app.requestSingleInstanceLock()) app.quit();
+const setupClaudeOnly = process.argv.includes('--setup-claude');
+if (!setupClaudeOnly && !app.requestSingleInstanceLock()) app.quit();
 // Starting the app again while it runs shows the overlay instead of silently exiting.
-app.on('second-instance', () => { if (win && !win.isVisible()) toggle(); });
+if (!setupClaudeOnly) app.on('second-instance', () => { if (win && !win.isVisible()) toggle(); });
 
 app.whenReady().then(() => {
+  if (setupClaudeOnly) {
+    const result = installClaudeStatusLine();
+    if (!result.ok) console.warn(`Claude limit setup: ${result.message}`);
+    app.exit(result.ok ? 0 : 1);
+    return;
+  }
   if (app.dock) app.dock.hide();
+  // Set up Claude Code limits for this user on first launch. The setup helper
+  // preserves existing settings and leaves a different status line untouched.
+  const claudeSetup = installClaudeStatusLine();
+  if (!claudeSetup.ok) console.warn(`Claude limit setup: ${claudeSetup.message}`);
   position = loadPosition();
   // The overlay never needs camera, mic, notifications, etc.
   session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
