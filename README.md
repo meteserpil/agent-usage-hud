@@ -55,42 +55,23 @@ The overlay appears once at start, then runs in the background. On macOS, you ca
 
 The overlay doesn't steal focus, so you can keep typing in your editor while it's open.
 
-## Claude Code limits (one-time setup)
+## Claude Code limits
 
-Claude Code only shares your 5-hour and weekly limit with its [status line](https://code.claude.com/docs/en/statusline). This repo ships a tiny status line script that saves those two percentages for the overlay and prints them at the bottom of Claude Code:
+Claude Code only shares its 5-hour and weekly limit with its [status line](https://code.claude.com/docs/en/statusline). When Claude Code is detected, click **Set up Claude limits** in the HUD. The app installs its helper in `~/.claude` and adds the status line entry to your Claude settings. It preserves other settings and makes a timestamped backup before changing an existing `settings.json`.
 
-```
-5h 34% · 7d 71%
-```
-
-Add this to `~/.claude/settings.json` (use the real path to where you cloned the repo):
+For manual setup, first copy `claude-statusline.js` to `~/.claude/agent-usage-hud-statusline.js`, then add this to `~/.claude/settings.json`:
 
 ```json
 {
   "statusLine": {
     "type": "command",
-    "command": "node /path/to/agent-usage-hud/claude-statusline.js"
+    "command": "node ~/.claude/agent-usage-hud-statusline.js"
   }
 }
 ```
-
-On Windows, use forward slashes, for example `node C:/Users/you/agent-usage-hud/claude-statusline.js`.
-
-If you installed the macOS DMG, the script is included in the app. Use this command in `~/.claude/settings.json`:
-
-```json
-{
-  "statusLine": {
-    "type": "command",
-    "command": "node \"/Applications/Agent Usage HUD.app/Contents/Resources/claude-statusline.js\""
-  }
-}
-```
-
-If you installed the app somewhere other than `/Applications`, update the path to match.
 
 Notes:
-- This replaces any status line you already have.
+- The app does not replace a different status line you already configured; merge the HUD command yourself if you want to keep both.
 - Limits are only available on Claude Pro and Max plans, and appear after the first reply in a session.
 - The percentages update whenever Claude Code refreshes its status line, so start a Claude Code session to see fresh numbers.
 
@@ -98,11 +79,13 @@ Notes:
 
 This app was written to be easy to audit. It's a few hundred lines of plain JavaScript with no runtime dependencies (only Electron itself).
 
-- **Read-only.** It only reads the agents' log files. Cursor's database is opened in read-only mode. It never changes, moves or deletes anything those tools own.
+- **Usage data is read-only.** It only reads the agents' log files. Cursor's database is opened in read-only mode. It never changes, moves or deletes anything those tools own. When you set up Claude limits, it adds the status line entry to Claude's settings and backs up an existing settings file first.
 - **Offline.** It makes no network requests: no telemetry, no analytics, no update checks, no accounts, no API keys.
 - **Nothing sensitive leaves the log files.** Only numbers (counts, token totals, percentages) are passed to the window. Your prompts and code are never displayed or stored.
 - **It writes only a few small local files:**
   - `~/.agent-usage-hud/claude-limits.json`: the two Claude limit percentages and their reset times (written by the status line script)
+  - `~/.claude/agent-usage-hud-statusline.js`: the helper Claude Code runs to provide limit percentages
+  - `~/.claude/settings.json`: the Claude status line command (only added when you click **Set up Claude limits**)
   - `config.json` in the app's data folder: your hotkey and overlay position
   - renderer state in the app's data folder: which agents have their usage details collapsed
 - **No keylogging.** The hotkey uses the operating system's global shortcut API (the same one media keys use). It only learns when *your* chosen combination is pressed. On macOS it needs no Accessibility or Input Monitoring permission.

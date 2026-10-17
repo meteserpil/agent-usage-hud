@@ -1,10 +1,12 @@
 const { app, BrowserWindow, globalShortcut, ipcMain, screen, session } = require('electron');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { collect } = require('./usage');
 
 const DEFAULT_HOTKEY = 'CommandOrControl+Shift+U';
 const configFile = () => path.join(app.getPath('userData'), 'config.json');
+const CLAUDE_STATUSLINE_COMMAND = 'node ~/.claude/agent-usage-hud-statusline.js';
 const WIDTH = 280;
 const USAGE_REFRESH_MS = 60_000;
 let win;
@@ -19,6 +21,97 @@ function readConfig() {
 function saveConfig(patch) {
   fs.mkdirSync(path.dirname(configFile()), { recursive: true });
   fs.writeFileSync(configFile(), JSON.stringify({ ...readConfig(), ...patch }));
+}
+
+function claudeSettingsFile() {
+  const configDir = process.env.CLAUDE_CONFIG_DIR;
+  const dir = configDir
+    ? path.resolve(configDir.replace(/^~(?=$|[\\/])/, os.homedir()))
+    : path.join(os.homedir(), '.claude');
+  return path.join(dir, 'settings.json');
+}
+
+function readClaudeSettings() {
+  const file = claudeSettingsFile();
+  if (!fs.existsSync(file)) return { file, settings: {} };
+  const settings = JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) throw new Error('Claude settings.json must contain a JSON object.');
+  return { file, settings };
+}
+
+function isHudStatusLine(value) {
+  const command = value && typeof value.command === 'string' ? value.command : '';
+  return /(?:agent-usage-hud-statusline|claude-statusline)\.js/i.test(command);
+}
+
+function claudeStatusLineState() {
+  try {
+    const { settings } = readClaudeSettings();
+    if (!settings.statusLine) return 'missing';
+    return isHudStatusLine(settings.statusLine) ? 'configured' : 'conflict';
+  } catch {
+    return 'invalid';
+  }
+}
+
+function installClaudeStatusLine() {
+  let file, settings;
+  try { ({ file, settings } = readClaudeSettings()); }
+  catch (error) { return { ok: false, message: `Could not read Claude settings: ${error.message}` }; }
+
+  const current = settings.statusLine;
+  if (current && !isHudStatusLine(current)) {
+    return { ok: false, message: 'Claude already has a different status line. It was left unchanged.' };
+  }
+
+  const helperDir = path.join(os.homedir(), '.claude');
+  const helperFile = path.join(helperDir, 'agent-usage-hud-statusline.js');
+  const sourceFile = app.isPackaged
+    ? path.join(process.resourcesPath, 'claude-statusline.js')
+    : path.join(__dirname, 'claude-statusline.js');
+  try {
+    fs.mkdirSync(helperDir, { recursive: true });
+    if (fs.existsSync(helperFile) && !fs.readFileSync(helperFile, 'utf8').includes('Installed and updated by agent-usage-hud')) {
+      return { ok: false, message: 'The HUD status line helper already exists and was left unchanged.' };
+    }
+    fs.copyFileSync(sourceFile, helperFile);
+  } catch (error) {
+    return { ok: false, message: `Could not install the Claude status line helper: ${error.message}` };
+  }
+
+  const next = { ...settings };
+  next.statusLine = { ...(current || {}), type: 'command', command: CLAUDE_STATUSLINE_COMMAND };
+  if (current && JSON.stringify(current) === JSON.stringify(next.statusLine)) {
+    return { ok: true, message: 'Claude limit tracking is already set up. Start or resume Claude Code to load the latest limits.' };
+  }
+
+  const existed = fs.existsSync(file);
+  const temp = `${file}.${process.pid}.tmp`;
+  let backup = '';
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    const mode = existed ? fs.statSync(file).mode : 0o600;
+    fs.writeFileSync(temp, `${JSON.stringify(next, null, 2)}\n`, { encoding: 'utf8', mode });
+    if (existed) {
+      backup = `${file}.agent-usage-hud-${Date.now()}.bak`;
+      fs.copyFileSync(file, backup, fs.constants.COPYFILE_EXCL);
+    }
+    try {
+      fs.renameSync(temp, file);
+    } catch (error) {
+      if (process.platform !== 'win32' || !existed) throw error;
+      fs.writeFileSync(file, fs.readFileSync(temp, 'utf8'), 'utf8');
+      fs.unlinkSync(temp);
+    }
+  } catch (error) {
+    try { fs.unlinkSync(temp); } catch { /* no temporary file remains */ }
+    if (backup && process.platform === 'win32') {
+      try { fs.copyFileSync(backup, file); } catch { /* retain the backup for manual recovery */ }
+    }
+    return { ok: false, message: `Could not update Claude settings: ${error.message}` };
+  }
+  const backupNote = backup ? ` Backup saved as ${path.basename(backup)}.` : '';
+  return { ok: true, message: `Claude limit tracking is set up. Start or resume Claude Code to load the latest limits.${backupNote}` };
 }
 
 function loadHotkey() {
@@ -111,7 +204,8 @@ app.whenReady().then(() => {
   win.loadFile('index.html');
 
   // AGENT_USAGE_HUD_HOME points at another home folder (used for demo screenshots).
-  ipcMain.handle('usage', () => ({ ...collect({ home: process.env.AGENT_USAGE_HUD_HOME || undefined }), hotkey }));
+  ipcMain.handle('usage', () => ({ ...collect({ home: process.env.AGENT_USAGE_HUD_HOME || undefined }), hotkey, claudeStatusLine: claudeStatusLineState() }));
+  ipcMain.handle('setup-claude-limits', () => installClaudeStatusLine());
   ipcMain.handle('begin-key-capture', () => {
     if (hotkey) globalShortcut.unregister(hotkey);
     return true;

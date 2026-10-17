@@ -70,6 +70,7 @@ function rings(t, size) {
 const used = (t) => t.found && (t.sessions > 0 || (t.windows && t.windows.length));
 const COLLAPSED_KEY = 'agent-usage-hud-collapsed';
 let collapsedAgents = new Set();
+let claudeSetupFeedback = '';
 try {
   const saved = JSON.parse(localStorage.getItem(COLLAPSED_KEY) || '[]');
   if (Array.isArray(saved)) collapsedAgents = new Set(saved.filter((name) => typeof name === 'string'));
@@ -80,7 +81,7 @@ async function refresh() {
   if (refreshing) return;
   refreshing = true;
   try {
-  const { tools, now, hotkey } = await window.hud.usage();
+  const { tools, now, hotkey, claudeStatusLine } = await window.hud.usage();
   const list = document.getElementById('tools');
   list.replaceChildren();
   // Only tools used this week; fall back to installed ones so the panel is never empty.
@@ -109,7 +110,33 @@ async function refresh() {
     const tokens = t.input + t.output;
     const plural = (n, w) => `${fmt(n)} ${w}${n === 1 ? '' : 's'}`;
     details.append(el('div', { class: 'muted' }, '7d: ' + [plural(t.sessions, 'session'), t.messages && plural(t.messages, 'msg'), tokens && `${fmt(tokens)} tok`].filter(Boolean).join(' · ')));
-    if (t.note) details.append(el('div', { class: 'muted' }, t.note));
+    if (t.note && t.note !== 'add the status line script to see limits') details.append(el('div', { class: 'muted' }, t.note));
+    if (t.name === 'Claude Code' && (claudeStatusLine !== 'configured' || !t.windows.length)) {
+      const setup = el('div', { class: 'claude-setup muted' });
+      if (claudeSetupFeedback) {
+        setup.textContent = claudeSetupFeedback;
+      } else if (claudeStatusLine === 'configured') {
+        setup.textContent = 'Status line set up. Start or resume Claude Code to load its limits.';
+      } else if (claudeStatusLine === 'conflict') {
+        setup.textContent = 'A different status line is configured. The HUD left it unchanged.';
+      } else if (claudeStatusLine === 'invalid') {
+        setup.textContent = 'Could not read Claude settings.json. Check that it contains valid JSON.';
+      } else {
+        const setupButton = document.createElement('button');
+        setupButton.type = 'button';
+        setupButton.className = 'setup-button';
+        setupButton.textContent = 'Set up Claude limits';
+        setupButton.onclick = async () => {
+          setupButton.disabled = true;
+          setupButton.textContent = 'Setting up…';
+          const result = await window.hud.setupClaudeLimits();
+          claudeSetupFeedback = result.message;
+          refresh();
+        };
+        setup.append(setupButton);
+      }
+      details.append(setup);
+    }
     info.append(details);
     row.append(rings(t, size), info);
     collapse.onclick = () => {

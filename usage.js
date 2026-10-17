@@ -52,9 +52,10 @@ const pickClaude = (e) => e.message && e.message.usage &&
 
 function claudeCode(home, since, now, limitsFile) {
   const r = row('Claude Code');
-  const roots = [process.env.CLAUDE_CONFIG_DIR, path.join(home, '.claude'), path.join(home, '.config', 'claude')]
-    .filter(Boolean).map((d) => path.join(d, 'projects')).filter((d) => fs.existsSync(d));
-  r.found = roots.length > 0;
+  const configDirs = [process.env.CLAUDE_CONFIG_DIR, path.join(home, '.claude'), path.join(home, '.config', 'claude')]
+    .filter(Boolean).filter((d) => fs.existsSync(d));
+  const roots = configDirs.map((d) => path.join(d, 'projects')).filter((d) => fs.existsSync(d));
+  r.found = configDirs.length > 0;
   const seen = new Set();
   const sessions = new Set();
   for (const root of roots) {

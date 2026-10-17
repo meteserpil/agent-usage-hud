@@ -3,7 +3,10 @@
 // Claude Code pipes session JSON on stdin. Only the two rate_limits windows are written to disk.
 const fs = require('fs');
 const path = require('path');
-const { CLAUDE_LIMITS } = require('./usage');
+const os = require('os');
+
+// Installed and updated by agent-usage-hud; keep this script standalone.
+const CLAUDE_LIMITS = path.join(os.homedir(), '.agent-usage-hud', 'claude-limits.json');
 
 let input = '';
 process.stdin.on('data', (c) => (input += c));
