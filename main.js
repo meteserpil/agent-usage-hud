@@ -6,7 +6,7 @@ const { collect } = require('./usage');
 
 const DEFAULT_HOTKEY = 'CommandOrControl+Shift+U';
 const configFile = () => path.join(app.getPath('userData'), 'config.json');
-const CLAUDE_STATUSLINE_COMMAND = 'node ~/.claude/agent-usage-hud-statusline.js';
+const CLAUDE_STATUSLINE_HELPER = 'agent-usage-hud-statusline.js';
 const WIDTH = 280;
 const USAGE_REFRESH_MS = 60_000;
 let win;
@@ -23,13 +23,14 @@ function saveConfig(patch) {
   fs.writeFileSync(configFile(), JSON.stringify({ ...readConfig(), ...patch }));
 }
 
-function claudeSettingsFile() {
+function claudeConfigDir() {
   const configDir = process.env.CLAUDE_CONFIG_DIR;
-  const dir = configDir
+  return configDir
     ? path.resolve(configDir.replace(/^~(?=$|[\\/])/, os.homedir()))
     : path.join(os.homedir(), '.claude');
-  return path.join(dir, 'settings.json');
 }
+
+function claudeSettingsFile() { return path.join(claudeConfigDir(), 'settings.json'); }
 
 function readClaudeSettings() {
   const file = claudeSettingsFile();
@@ -54,7 +55,7 @@ function claudeStatusLineState() {
   }
 }
 
-function installClaudeStatusLine() {
+function installClaudeStatusLine({ combineExisting = false } = {}) {
   let file, settings;
   try { ({ file, settings } = readClaudeSettings()); }
   catch (error) {
@@ -67,27 +68,61 @@ function installClaudeStatusLine() {
   }
 
   const current = settings.statusLine;
-  if (current && !isHudStatusLine(current)) {
+  const hasExistingStatusLine = current && !isHudStatusLine(current);
+  if (hasExistingStatusLine && !combineExisting) {
     return { ok: false, exitCode: 3, message: 'Claude already has a different status line. It was left unchanged.' };
   }
+  if (hasExistingStatusLine && (current.type !== 'command' || typeof current.command !== 'string' || !current.command.trim())) {
+    return { ok: false, exitCode: 5, message: 'Only command-based Claude status lines can be combined. The existing setting was left unchanged.' };
+  }
 
-  const helperDir = path.join(os.homedir(), '.claude');
-  const helperFile = path.join(helperDir, 'agent-usage-hud-statusline.js');
+  const helperDir = claudeConfigDir();
+  const helperFile = path.join(helperDir, CLAUDE_STATUSLINE_HELPER);
+  const wrapperConfigFile = path.join(helperDir, 'agent-usage-hud-statusline.json');
   const sourceFile = app.isPackaged
     ? path.join(process.resourcesPath, 'claude-statusline.js')
     : path.join(__dirname, 'claude-statusline.js');
+  const wrapperWasCreated = !!hasExistingStatusLine;
+  let previousWrapperConfig = null;
   try {
     fs.mkdirSync(helperDir, { recursive: true });
     if (fs.existsSync(helperFile) && !fs.readFileSync(helperFile, 'utf8').includes('Installed and updated by agent-usage-hud')) {
       return { ok: false, exitCode: 4, message: 'The HUD status line helper already exists and was left unchanged.' };
+    }
+    if (wrapperWasCreated && fs.existsSync(wrapperConfigFile)) {
+      previousWrapperConfig = fs.readFileSync(wrapperConfigFile, 'utf8');
+      if (!previousWrapperConfig.includes('agent-usage-hud')) {
+        return { ok: false, exitCode: 4, message: 'A Claude status line wrapper config already exists and was left unchanged.' };
+      }
     }
     fs.copyFileSync(sourceFile, helperFile);
   } catch (error) {
     return { ok: false, exitCode: 1, message: `Could not install the Claude status line helper: ${error.message}` };
   }
 
+  const commandPath = process.platform === 'win32' ? helperFile.replace(/\\/g, '/') : helperFile;
+  const helperCommand = process.platform === 'win32'
+    ? `node "${commandPath.replace(/"/g, '\\"')}"`
+    : `node '${commandPath.replace(/'/g, "'\\''")}'`;
   const next = { ...settings };
-  next.statusLine = { ...(current || {}), type: 'command', command: CLAUDE_STATUSLINE_COMMAND };
+  next.statusLine = { ...(current || {}), type: 'command', command: helperCommand };
+  const wrapperTemp = `${wrapperConfigFile}.${process.pid}.tmp`;
+  if (wrapperWasCreated) {
+    try {
+      fs.writeFileSync(wrapperTemp, JSON.stringify({ installedBy: 'agent-usage-hud', existingCommand: current.command }), 'utf8');
+      try {
+        fs.renameSync(wrapperTemp, wrapperConfigFile);
+      } catch (error) {
+        if (process.platform !== 'win32' || previousWrapperConfig === null) throw error;
+        fs.writeFileSync(wrapperConfigFile, fs.readFileSync(wrapperTemp, 'utf8'), 'utf8');
+        fs.unlinkSync(wrapperTemp);
+      }
+    } catch (error) {
+      try { fs.unlinkSync(wrapperTemp); } catch { /* no temporary file remains */ }
+      return { ok: false, exitCode: 1, message: `Could not prepare the Claude status line wrapper: ${error.message}` };
+    }
+  }
+
   if (current && JSON.stringify(current) === JSON.stringify(next.statusLine)) {
     return { ok: true, message: 'Claude limit tracking is already set up. Start or resume Claude Code to load the latest limits.' };
   }
@@ -112,6 +147,12 @@ function installClaudeStatusLine() {
     }
   } catch (error) {
     try { fs.unlinkSync(temp); } catch { /* no temporary file remains */ }
+    if (wrapperWasCreated) {
+      try {
+        if (previousWrapperConfig === null) fs.unlinkSync(wrapperConfigFile);
+        else fs.writeFileSync(wrapperConfigFile, previousWrapperConfig, 'utf8');
+      } catch { /* keep the original Claude settings intact */ }
+    }
     if (backup && process.platform === 'win32') {
       try { fs.copyFileSync(backup, file); } catch { /* retain the backup for manual recovery */ }
     }
@@ -128,6 +169,41 @@ function loadHotkey() {
 function loadPosition() {
   const p = readConfig().position;
   return p && Number.isFinite(p.x) && Number.isFinite(p.y) ? p : null;
+}
+
+function loginItemOptions() {
+  if (process.platform !== 'win32') return {};
+  return {
+    path: process.execPath,
+    args: app.isPackaged ? [] : [app.getAppPath()],
+  };
+}
+
+function getStartAtLogin() {
+  if (!['win32', 'darwin'].includes(process.platform)) return false;
+  try { return app.getLoginItemSettings(loginItemOptions()).openAtLogin; } catch { return false; }
+}
+
+function setStartAtLogin(enabled) {
+  if (!['win32', 'darwin'].includes(process.platform)) {
+    return { ok: false, supported: false, enabled: false, message: 'Start at login is supported on Windows and macOS.' };
+  }
+  try {
+    app.setLoginItemSettings({ ...loginItemOptions(), openAtLogin: enabled });
+    const actual = getStartAtLogin();
+    const ok = actual === enabled;
+    const macNote = process.platform === 'darwin'
+      ? ' macOS may require a signed and notarized app for this setting to work reliably.'
+      : '';
+    return {
+      ok,
+      supported: true,
+      enabled: actual,
+      message: ok ? '' : `The system did not confirm the login setting.${macNote}`
+    };
+  } catch (error) {
+    return { ok: false, supported: true, enabled: getStartAtLogin(), message: `Could not change start-at-login setting: ${error.message}` };
+  }
 }
 
 // Swap the global shortcut; keep the old one if the new one is taken by another app.
@@ -186,10 +262,6 @@ app.whenReady().then(() => {
     return;
   }
   if (app.dock) app.dock.hide();
-  // Set up Claude Code limits for this user on first launch. The setup helper
-  // preserves existing settings and leaves a different status line untouched.
-  const claudeSetup = installClaudeStatusLine();
-  if (!claudeSetup.ok) console.warn(`Claude limit setup: ${claudeSetup.message}`);
   position = loadPosition();
   // The overlay never needs camera, mic, notifications, etc.
   session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
@@ -222,8 +294,15 @@ app.whenReady().then(() => {
   win.loadFile('index.html');
 
   // AGENT_USAGE_HUD_HOME points at another home folder (used for demo screenshots).
-  ipcMain.handle('usage', () => ({ ...collect({ home: process.env.AGENT_USAGE_HUD_HOME || undefined }), hotkey, claudeStatusLine: claudeStatusLineState() }));
-  ipcMain.handle('setup-claude-limits', () => installClaudeStatusLine());
+  ipcMain.handle('usage', () => ({
+    ...collect({ home: process.env.AGENT_USAGE_HUD_HOME || undefined }),
+    hotkey,
+    claudeStatusLine: claudeStatusLineState(),
+    startAtLogin: getStartAtLogin(),
+    canStartAtLogin: ['win32', 'darwin'].includes(process.platform),
+  }));
+  ipcMain.handle('setup-claude-limits', (_e, combineExisting) => installClaudeStatusLine({ combineExisting: combineExisting === true }));
+  ipcMain.handle('set-start-at-login', (_e, enabled) => setStartAtLogin(enabled === true));
   ipcMain.handle('begin-key-capture', () => {
     if (hotkey) globalShortcut.unregister(hotkey);
     return true;

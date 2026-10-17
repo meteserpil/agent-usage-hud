@@ -59,7 +59,7 @@ npm ci
 npm start
 ```
 
-The overlay appears once at start, then runs in the background. You can also build macOS package installers with `npm run dist:mac`, or Windows installers with `npm run dist:win:x64` and `npm run dist:win:arm64`.
+The overlay appears once at start, then runs in the background. Starting the source build does not change Claude settings automatically. Click **Set up Claude limits** in the HUD to opt in; if another command is already configured, you can choose **Combine with existing status line**. Packaged installers still set up the HUD status line during installation. You can also build macOS package installers with `npm run dist:mac`, or Windows installers with `npm run dist:win:x64` and `npm run dist:win:arm64`.
 
 ## Use it
 
@@ -68,6 +68,7 @@ The overlay appears once at start, then runs in the background. You can also bui
 - **Collapse details:** click the `−` beside an agent's name to hide its usage details; click `+` to show them again. Each agent's preference is saved.
 - **Live updates:** usage refreshes every 60 seconds while the overlay is visible.
 - **Change the key:** click `key: …` at the bottom of the overlay and press any supported key or combination (for example `Ctrl+Alt+K`, `F9`, or a single letter). Press **Esc** or click the button again to cancel. Your choice is saved.
+- **Start at login:** turn on **Start at login** to launch the HUD when you sign in to Windows or macOS. macOS may require a signed and notarized app for this system setting to take effect reliably.
 - **hide** hides it, **quit** closes the app.
 
 The overlay doesn't steal focus, so you can keep typing in your editor while it's open.
@@ -79,7 +80,9 @@ Claude Code only shares its 5-hour and weekly limit with its [status line](https
 - **v1.1.9:** the Windows or macOS installer adds the status line entry to the installing user's Claude settings and explains setup failures.
 - **v1.1.7:** open the HUD and click **Set up Claude limits** to add the entry.
 
-Both methods install the helper in `~/.claude`, preserve other settings, and make a timestamped backup before changing an existing `settings.json`. If the file contains invalid JSON or already uses a different status line, setup leaves it unchanged. The installers show a message explaining the problem and how to resolve it; if setup fails for another reason, they tell you to open the HUD for its setup status.
+The installer configures the helper during installation. When running from source, setup is opt-in through the HUD button. Setup uses `~/.claude` by default or the directory in `CLAUDE_CONFIG_DIR`, preserves other settings, and makes a timestamped backup before changing an existing `settings.json`. If the file contains invalid JSON or already uses a different status line, setup leaves it unchanged. The installer shows a message explaining the problem and how to resolve it; if setup fails for another reason, it tells you to open the HUD for its setup status.
+
+If a different command-based status line is configured, open the HUD and choose **Combine with existing status line**. The HUD saves the existing command, runs it with Claude's session input, and joins its output with the HUD's limits. The original status line command continues to run. Other status line types are left unchanged.
 
 ### Manual Claude Code setup
 
@@ -108,8 +111,9 @@ This app was written to be easy to audit. It's a few hundred lines of plain Java
 - **Nothing sensitive leaves the log files.** Only numbers (counts, token totals, percentages) are passed to the window. Your prompts and code are never displayed or stored.
 - **It writes only a few small local files:**
   - `~/.agent-usage-hud/claude-limits.json`: the two Claude limit percentages and their reset times (written by the status line script)
-  - `~/.claude/agent-usage-hud-statusline.js`: the helper Claude Code runs to provide limit percentages
-  - `~/.claude/settings.json`: the Claude status line command (added by the Windows or macOS installer)
+  - `~/.claude/agent-usage-hud-statusline.js` (or the `CLAUDE_CONFIG_DIR` directory): the helper Claude Code runs to provide limit percentages
+  - `~/.claude/settings.json` (or the `CLAUDE_CONFIG_DIR` directory): the Claude status line command (added by the Windows or macOS installer, or when you opt in from the HUD)
+  - `agent-usage-hud-statusline.json` in the Claude config directory: the prior status line command, only if you choose to combine it with the HUD
   - `config.json` in the app's data folder: your hotkey and overlay position
   - renderer state in the app's data folder: which agents have their usage details collapsed
 - **No keylogging.** The hotkey uses the operating system's global shortcut API (the same one media keys use). It only learns when *your* chosen combination is pressed. On macOS it needs no Accessibility or Input Monitoring permission.

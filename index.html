@@ -21,7 +21,11 @@
     .name { font-weight: 600; font-size: 13px; }
     .collapse-button { width: 20px; height: 20px; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 5px; color: #c8c8cf; font-size: 14px; line-height: 1; cursor: pointer; }
     .info div { font-variant-numeric: tabular-nums; }
-    footer { display: flex; justify-content: space-between; margin-top: 6px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+    footer { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 7px; margin-top: 6px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+    .footer-actions { display: flex; justify-content: space-between; align-items: center; }
+    .login-option { grid-column: 1 / -1; display: flex; align-items: center; gap: 5px; color: #9a9aa3; font-size: 11px; cursor: pointer; }
+    .login-option input { margin: 0; accent-color: #8b8b98; }
+    #start-at-login-status { grid-column: 1 / -1; }
     button { background: none; border: 0; color: #9a9aa3; cursor: pointer; font: inherit; font-size: 11px; padding: 0; }
     button:hover, button:focus-visible { color: #fff; }
     .claude-setup { margin-top: 4px; line-height: 1.4; }
@@ -36,7 +40,9 @@
     <div id="tools"></div>
     <footer>
       <button id="key" title="Click, then press a new shortcut"></button>
-      <span><button id="close" title="Hide">hide</button> · <button id="quit" title="Quit app">quit</button></span>
+      <span class="footer-actions"><button id="close" title="Hide">hide</button> · <button id="quit" title="Quit app">quit</button></span>
+      <label class="login-option"><input id="start-at-login" type="checkbox"> Start at login</label>
+      <span id="start-at-login-status" class="muted" role="status"></span>
     </footer>
   </div>
   <script src="renderer.js"></script>

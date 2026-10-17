@@ -81,7 +81,11 @@ async function refresh() {
   if (refreshing) return;
   refreshing = true;
   try {
-  const { tools, now, hotkey, claudeStatusLine } = await window.hud.usage();
+  const { tools, now, hotkey, claudeStatusLine, startAtLogin, canStartAtLogin } = await window.hud.usage();
+  const startAtLoginControl = document.getElementById('start-at-login');
+  const startAtLoginStatus = document.getElementById('start-at-login-status');
+  startAtLoginControl.checked = startAtLogin;
+  startAtLoginControl.disabled = !canStartAtLogin;
   const list = document.getElementById('tools');
   list.replaceChildren();
   // Only tools used this week; fall back to installed ones so the panel is never empty.
@@ -118,7 +122,18 @@ async function refresh() {
       } else if (claudeStatusLine === 'configured') {
         setup.textContent = 'Status line set up. Start or resume Claude Code to load its limits.';
       } else if (claudeStatusLine === 'conflict') {
-        setup.textContent = 'A different status line is configured. The HUD left it unchanged.';
+        setup.append(el('div', {}, 'A different status line is configured. It has been left unchanged.'));
+        const combineButton = document.createElement('button');
+        combineButton.type = 'button';
+        combineButton.className = 'setup-button';
+        combineButton.textContent = 'Combine with existing status line';
+        combineButton.onclick = async () => {
+          combineButton.disabled = true;
+          const result = await window.hud.setupClaudeLimits(true);
+          claudeSetupFeedback = result.message;
+          refresh();
+        };
+        setup.append(combineButton);
       } else if (claudeStatusLine === 'invalid') {
         setup.textContent = 'Could not read Claude settings.json. Check that it contains valid JSON.';
       } else {
@@ -129,7 +144,7 @@ async function refresh() {
         setupButton.onclick = async () => {
           setupButton.disabled = true;
           setupButton.textContent = 'Setting up…';
-          const result = await window.hud.setupClaudeLimits();
+          const result = await window.hud.setupClaudeLimits(false);
           claudeSetupFeedback = result.message;
           refresh();
         };
@@ -213,4 +228,12 @@ keyBtn.onclick = async () => {
 };
 document.getElementById('close').onclick = () => window.hud.hide();
 document.getElementById('quit').onclick = () => window.hud.quit();
+document.getElementById('start-at-login').onchange = async (event) => {
+  const checkbox = event.currentTarget;
+  checkbox.disabled = true;
+  const result = await window.hud.setStartAtLogin(checkbox.checked);
+  checkbox.checked = result.enabled;
+  checkbox.disabled = !result.supported;
+  document.getElementById('start-at-login-status').textContent = result.ok ? '' : result.message;
+};
 window.hud.onRefresh(refresh); // main sends 'refresh' every time the overlay opens, including at start
