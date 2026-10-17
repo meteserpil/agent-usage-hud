@@ -25,7 +25,9 @@ jobs:
         run: npm ci
 
       - name: Build Intel and Apple Silicon package installers
-        run: npm run dist:mac -- --x64 --arm64 --publish never
+        run: |
+          npm run dist:mac -- --x64 --publish never
+          npm run dist:mac -- --arm64 --publish never
 
       - name: Upload macOS package installers
         uses: actions/upload-artifact@v4
