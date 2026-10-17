@@ -45,11 +45,7 @@
       "minimumSystemVersion": "12.0.0",
       "target": [
         {
-          "target": "pkg",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
+          "target": "pkg"
         }
       ],
       "artifactName": "Agent-Usage-HUD-${version}-${arch}.${ext}"
