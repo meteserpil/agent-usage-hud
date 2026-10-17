@@ -1,8 +1,8 @@
-# agent-usage-hud
+# Agent Usage HUD
 
 A small always-on-top overlay for **Windows and macOS** that shows how much of your AI coding agent limits you have used. Press a hotkey, it slides in on the right edge of your screen; press it again and it's gone.
 
-![agent-usage-hud overlay](docs/screenshot.png)
+![Agent Usage HUD overlay](docs/screenshot.png)
 
 - **Rings:** shortest detected limit window on the inner ring and longest on the outer ring; each window is labeled with its actual duration
 - Rings go from **green to red** as you approach the limit, and animate every time you open the overlay
@@ -58,7 +58,7 @@ The overlay appears once at start, then runs in the background. You can also bui
 - **Move:** drag the header to place the overlay anywhere on a screen; its position is saved
 - **Collapse details:** click the `−` beside an agent's name to hide its usage details; click `+` to show them again. Each agent's preference is saved.
 - **Live updates:** usage refreshes every 60 seconds while the overlay is visible.
-- **Change the key:** click `key: …` at the bottom of the overlay and press any supported key or combination (for example `Ctrl+Alt+K`, `F9`, or a single letter). Click the button again to cancel. Your choice is saved.
+- **Change the key:** click `key: …` at the bottom of the overlay and press any supported key or combination (for example `Ctrl+Alt+K`, `F9`, or a single letter). Press **Esc** or click the button again to cancel. Your choice is saved.
 - **hide** hides it, **quit** closes the app.
 
 The overlay doesn't steal focus, so you can keep typing in your editor while it's open.

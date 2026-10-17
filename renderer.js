@@ -167,7 +167,7 @@ const showKey = (k) => { keyBtn.textContent = `key: ${(k || 'none').replace('Com
 // Turn a keydown into an Electron accelerator like "Control+Alt+K" or "F9".
 function accelerator(e) {
   const named = {
-    Space: 'Space', Tab: 'Tab', Enter: 'Enter', NumpadEnter: 'Enter', Escape: 'Escape',
+    Space: 'Space', Tab: 'Tab', Enter: 'Enter', NumpadEnter: 'Enter',
     Backspace: 'Backspace', Delete: 'Delete', Insert: 'Insert', Home: 'Home', End: 'End',
     PageUp: 'PageUp', PageDown: 'PageDown', ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right',
     CapsLock: 'Capslock', NumLock: 'Numlock', ScrollLock: 'Scrolllock', PrintScreen: 'PrintScreen',
@@ -193,9 +193,10 @@ keyBtn.onclick = async () => {
   await window.hud.beginKeyCapture();
   const previous = keyBtn.dataset.key;
   keyBtn.classList.add('capturing');
-  keyBtn.textContent = 'press any key or combo… (click to cancel)';
+  keyBtn.textContent = 'press a key or combo… (Esc or click to cancel)';
   const onKey = async (e) => {
     e.preventDefault();
+    if (e.key === 'Escape') { done(previous, true); return; }
     const acc = accelerator(e);
     if (!acc) return; // still waiting for a usable combo
     done((await window.hud.setHotkey(acc)) ? acc : previous);

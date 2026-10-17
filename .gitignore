@@ -1,2 +1,7 @@
 node_modules/
 dist/
+build/icon-*.png
+build/icon.png
+build/icon-render-*/
+build/render-icon.cjs
+build/package-icons.cjs
